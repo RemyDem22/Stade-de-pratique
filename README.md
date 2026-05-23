@@ -16,7 +16,7 @@ Le pipeline :
 - Fusionne les tuiles générés
 - Calcul le stade de km parcourus selon un catalogue géographique
 
-**Structure du projet**
+## Structure du projet**
 
 Stade-de-Pratique/
 │
@@ -36,14 +36,14 @@ Stade-de-Pratique/
 │
 └── output/
 
-Installation complète
+### Installation complète
 Clone du projet : git clone https://github.com/RemyDem22/Stade-de-Pratique.git
 cd Stade-de-Pratique
 
-Installation des dépendances
-pip install geopandas shapely fiona pyproj rtree joblib tqdm pandas
+### Installation des dépendances
+pip install geopandas shapely fiona pyproj rtree joblib tqdm pandas fiona numpy
 
-Préparation des données
+### Préparation des données
 - Flux M3 À placer dans : data/ (Format : .gpkg)
 - Grille de traitement : data/ (Format : .geojson)
 - Catalogue géographique : catalogue_geographique/ (Formats : .geojson)
