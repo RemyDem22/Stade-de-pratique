@@ -16,7 +16,7 @@ Le pipeline :
 - Fusionne les tuiles générés
 - Calcul le stade de km parcourus selon un catalogue géographique
 
-## Structure du projet**
+## Structure du projet
 
 Stade-de-Pratique/
 │
