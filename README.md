@@ -54,5 +54,10 @@ pip install geopandas shapely fiona pyproj rtree joblib tqdm pandas fiona numpy
             - massifs forestiers
             - bassins de vie
 
-Projet développé dans le cadre d’expérimentations SIG et génération automatique de réseaux spatiaux.
+### Éxecuter le pipeline
+
+python launcher.py
+
+
+**Projet développé dans le cadre d’expérimentations SIG et génération automatique de réseaux spatiaux.**
 
