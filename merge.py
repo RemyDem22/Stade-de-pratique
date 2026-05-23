@@ -1,73 +1,80 @@
 import os
-import glob
-import tkinter as tk
-from tkinter import filedialog, messagebox
-from tqdm import tqdm
 import geopandas as gpd
 import pandas as pd
 import fiona
 
-def choisir_dossier():
-    root = tk.Tk()
-    root.withdraw()
-    dossier = filedialog.askdirectory(
-        title="Sélectionnez le dossier contenant les fichiers GPKG"
-    )
-    return dossier
+def fusionner_gpkg(dossier_input, dossier_output, nom_fichier_sortie="fusion_resultat.gpkg"):
 
-def fusionner_gpkg(dossier):
-    fichiers_gpkg = glob.glob(os.path.join(dossier, "*.gpkg"))
+    fichiers_gpkg = [
+        os.path.join(dossier_input, f)
+        for f in os.listdir(dossier_input)
+        if f.endswith(".gpkg")
+    ]
 
     if not fichiers_gpkg:
-        print("Aucun fichier .gpkg trouvé.")
-        return
-
-    print(f"{len(fichiers_gpkg)} fichiers trouvés.")
+        raise Exception("Aucun fichier .gpkg trouvé")
 
     gdfs = []
 
-    for fichier in tqdm(fichiers_gpkg, desc="Lecture des GPKG"):
-        try:
-            # Liste des couches du GPKG
-            couches = fiona.listlayers(fichier)
+    for fichier in fichiers_gpkg:
 
-            for couche in couches:
-                gdf = gpd.read_file(fichier, layer=couche)
+        couches = fiona.listlayers(fichier)
 
-                # Ajouter le nom du fichier source (optionnel)
-                gdf["source_file"] = os.path.basename(fichier)
+        for couche in couches:
 
-                gdfs.append(gdf)
+            gdf = gpd.read_file(fichier, layer=couche)
+            gdf["source_file"] = os.path.basename(fichier)
 
-        except Exception as e:
-            print(f"Erreur avec {fichier} : {e}")
+            gdfs.append(gdf)
 
     if not gdfs:
-        print("Aucune donnée valide à fusionner.")
-        return
+        raise Exception("Aucune donnée valide")
 
-    print("Fusion des données...")
     gdf_final = gpd.GeoDataFrame(
         pd.concat(gdfs, ignore_index=True),
         crs=gdfs[0].crs
     )
 
-    sortie = os.path.join(dossier, "fusion_resultat.gpkg")
+    os.makedirs(dossier_output, exist_ok=True)
 
-    print("Écriture du fichier final...")
-    gdf_final.to_file(sortie, driver="GPKG")
+    output_path = os.path.join(dossier_output, nom_fichier_sortie)
 
-    print(f"\nFusion terminée :\n{sortie}")
+    gdf_final.to_file(output_path, driver="GPKG")
 
-    messagebox.showinfo(
-        "Terminé",
-        f"Fusion terminée.\nFichier créé :\n{sortie}"
-    )
+    print(f"✔ Fusion terminée : {output_path}")
+
+
+# =========================================================
+# MODE STANDALONE (OPTIONNEL)
+# =========================================================
 
 if __name__ == "__main__":
-    dossier = choisir_dossier()
 
-    if dossier:
-        fusionner_gpkg(dossier)
-    else:
-        print("Aucun dossier sélectionné.")
+    import tkinter as tk
+    from tkinter import filedialog
+
+    root = tk.Tk()
+    root.withdraw()
+
+    print("\n=== MODE STANDALONE MERGE ===")
+
+    dossier_input = filedialog.askdirectory(
+        title="Sélectionnez le dossier contenant les GPKG"
+    )
+
+    if not dossier_input:
+        print("[MERGE] Aucun dossier sélectionné.")
+        exit()
+
+    dossier_output = filedialog.askdirectory(
+        title="Sélectionnez le dossier de sortie"
+    )
+
+    if not dossier_output:
+        print("[MERGE] Aucun dossier de sortie sélectionné.")
+        exit()
+
+    fusionner_gpkg(
+        dossier_input=dossier_input,
+        dossier_output=dossier_output
+    )

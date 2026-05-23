@@ -13,15 +13,18 @@ import argparse
 # ARGUMENTS
 # -----------------------------
 parser = argparse.ArgumentParser()
+parser.add_argument("--output", required=True)
 parser.add_argument("--clean", action="store_true")
 args = parser.parse_args()
 
 # -----------------------------
 # PATHS
 # -----------------------------
-STEP5_FOLDER = "output/step5_voronoi_lines"
-STEP6_FOLDER = "output/step6_vertices"
-STEP7_FOLDER = "output/step7_split_lines"
+
+BASE_OUTPUT = args.output
+STEP5_FOLDER = os.path.join(BASE_OUTPUT, "step5_voronoi_lines")
+STEP6_FOLDER = os.path.join(BASE_OUTPUT, "step6_vertices")
+STEP7_FOLDER = os.path.join(BASE_OUTPUT, "step7_split_lines")
 
 # -----------------------------
 # SAFE DELETE (Windows friendly)
@@ -140,19 +143,19 @@ def process_file(file):
 # -----------------------------
 if __name__ == "__main__":
 
-    print("▶️ main_split lancé")
+    print("main_split lancé...")
 
     # CLEAN propre (une seule fois)
     if args.clean:
         if os.path.exists(STEP7_FOLDER):
             safe_rmtree(STEP7_FOLDER)
-            print(f"🧹 {STEP7_FOLDER} supprimé")
+            print(f"{STEP7_FOLDER} supprimé...")
 
     os.makedirs(STEP7_FOLDER, exist_ok=True)
 
-    print("🔄 Lancement SPLIT BRUT")
+    print("Lancement split brut...")
 
-    files = os.listdir(STEP5_FOLDER)
+    files = [f for f in os.listdir(STEP5_FOLDER) if f.endswith(".gpkg")]
 
     n_jobs = max(1, multiprocessing.cpu_count() - 1)
 
@@ -160,4 +163,4 @@ if __name__ == "__main__":
         delayed(process_file)(file) for file in tqdm(files)
     )
 
-    print("✅ Split brut terminé")
+    print("Step7 terminé...")

@@ -3,6 +3,8 @@ import os
 from tqdm import tqdm
 import shutil
 import time
+import tkinter as tk
+from tkinter import filedialog
 
 from processing import process_tile, polygon_to_line, lines_to_points, create_voronoi, extract_vertices
 from joblib import Parallel, delayed
@@ -11,7 +13,12 @@ import argparse
 
 import glob
 
+
 parser = argparse.ArgumentParser()
+parser.add_argument("--input", required=True)
+parser.add_argument("--grid", required=True)
+parser.add_argument("--output", required=True)
+parser.add_argument("--m3", required=False)
 parser.add_argument("--clean", action="store_true")
 args = parser.parse_args()
 
@@ -19,7 +26,7 @@ args = parser.parse_args()
 # PARAMETRES
 # -----------------------------
 
-BASE_OUTPUT = "output"
+BASE_OUTPUT = args.output
 STEP1_FOLDER = os.path.join(BASE_OUTPUT, "step1_buffer")
 STEP2_FOLDER = os.path.join(BASE_OUTPUT, "step2_lines")
 STEP3_FOLDER = os.path.join(BASE_OUTPUT, "step3_points")
@@ -32,26 +39,33 @@ BUFFER_TILE = 10
 USE_MULTIPROCESSING = True
 N_JOBS = 6
 
-def choose_file(folder, extension):
+def choose_file(title, filetypes):
 
-    files = glob.glob(f"{folder}/*.{extension}")
+    root = tk.Tk()
+    root.withdraw()  # cache la fenêtre principale
 
-    if not files:
-        raise FileNotFoundError(f"Aucun fichier .{extension} dans {folder}")
+    filepath = filedialog.askopenfilename(
+        title=title,
+        initialdir="data",
+        filetypes=filetypes
+    )
 
-    print(f"\n📂 Choix du fichier ({extension}) :")
+    if not filepath:
+        raise Exception("Aucun fichier sélectionné")
 
-    for i, f in enumerate(files):
-        print(f"{i+1} - {f}")
+    return filepath
 
-    choice = int(input("👉 Ton choix : ")) - 1
+# -----------------------------
+# CHOIX DES FICHIERS
+# -----------------------------
 
-    return files[choice]
+print("📂 Sélection de la couche flux...")
 
-INPUT_FILE = choose_file("data", "gpkg")
-GRID_FILE = choose_file("data", "geojson")
+INPUT_FILE = args.input
 
-print("▶️ main_processing lancé")
+GRID_FILE = args.grid
+
+print("▶️  main_processing lancé")
 
 # -----------------------------
 # NETTOYAGE DOSSIER OUTPUT
@@ -61,14 +75,14 @@ STEP_FOLDERS = [STEP1_FOLDER, STEP2_FOLDER, STEP3_FOLDER, STEP4_FOLDER, STEP5_FO
 
 if args.clean:
 
-    print("🧹 Nettoyage dossiers STEP1 → STEP6")
+    print("Nettoyage dossiers STEP1 → STEP6")
 
     for folder in STEP_FOLDERS:
 
         if os.path.exists(folder):
             try:
                 shutil.rmtree(folder)
-                print(f"📂 {folder} a correctement nettoyé")
+                print(f"📂 Contenu de {folder} nettoyé")
 
             except PermissionError:
                 print(f"⚠️ {folder} verrouillé, tentative...")
@@ -269,4 +283,4 @@ else:
     for i, tile in tqdm(tiles.iterrows(), total=len(tiles)):
         process_one_tile(i, tile, data)
 
-print("Terminé !")
+print("step1to6 terminé...")

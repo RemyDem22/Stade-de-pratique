@@ -8,31 +8,36 @@ import stat
 from shapely.ops import linemerge, unary_union
 from shapely.geometry import LineString
 
-print("▶️ step8_buffer lancé")
+print("step8_buffer lancé...")
 
-# -----------------------------
+# =========================================================
 # ARGUMENTS CLI
-# -----------------------------
+# =========================================================
+
 parser = argparse.ArgumentParser()
+
+parser.add_argument("--output", required=True)
 parser.add_argument("--clean", action="store_true")
+
 args = parser.parse_args()
 
-# -----------------------------
-# PATHS
-# -----------------------------
-STEP7_FOLDER = "output/step7_split_lines"
-BUFFER_FOLDER = "output/step1_buffer"
-OUTPUT_FOLDER = "output/step8_final_lines"
+# =========================================================
+# PATHS (DYNAMIQUES)
+# =========================================================
+
+BASE_OUTPUT = args.output
+
+STEP7_FOLDER = os.path.join(BASE_OUTPUT, "step7_split_lines")
+BUFFER_FOLDER = os.path.join(BASE_OUTPUT, "step1_buffer")
+OUTPUT_FOLDER = os.path.join(BASE_OUTPUT, "step8_final_lines")
 
 os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 
-# -----------------------------
-# SAFE DELETE (ULTRA ROBUST)
-# -----------------------------
+# =========================================================
+# SAFE DELETE
+# =========================================================
+
 def on_rm_error(func, path, exc_info):
-    """
-    Force la suppression même si fichier read-only
-    """
     try:
         os.chmod(path, stat.S_IWRITE)
         func(path)
@@ -40,24 +45,24 @@ def on_rm_error(func, path, exc_info):
         print(f"❌ Impossible de supprimer {path} : {e}")
 
 def safe_rmtree(path, retries=5, delay=1):
-    """
-    Suppression robuste (Windows + OneDrive safe)
-    """
+
     for i in range(retries):
         try:
             shutil.rmtree(path, onerror=on_rm_error)
-            print(f"✅ Dossier supprimé : {path}")
+            print(f"Contenu de step8 nettoyé")
             return
         except PermissionError:
-            print(f"⚠️ Retry {i+1}/{retries} pour supprimer {path}")
+            print(f"⚠️ Retry {i+1}/{retries}")
             time.sleep(delay)
 
-    raise PermissionError(f"❌ Impossible de supprimer {path} après {retries} tentatives")
+    raise PermissionError(f"❌ Impossible de supprimer {path}")
 
-# -----------------------------
-# CHAikin SMOOTHING
-# -----------------------------
+# =========================================================
+# Chaikin smoothing
+# =========================================================
+
 def chaikin_smoothing(line, iterations=2):
+
     coords = list(line.coords)
 
     if len(coords) < 4:
@@ -67,6 +72,7 @@ def chaikin_smoothing(line, iterations=2):
         new_coords = [coords[0]]
 
         for i in range(1, len(coords) - 2):
+
             p0 = coords[i - 1]
             p1 = coords[i]
             p2 = coords[i + 1]
@@ -83,31 +89,26 @@ def chaikin_smoothing(line, iterations=2):
 
     return LineString(coords)
 
-# -----------------------------
+# =========================================================
 # CLEAN
-# -----------------------------
+# =========================================================
+
 if args.clean:
-    print("🧹 Nettoyage STEP8")
+
+    print("Nettoyage step8...")
 
     if os.path.exists(OUTPUT_FOLDER):
-        try:
-            safe_rmtree(OUTPUT_FOLDER)
-        except Exception as e:
-            print(f"⚠️ Nettoyage partiel échoué : {e}")
+        safe_rmtree(OUTPUT_FOLDER)
 
     os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 
-# -----------------------------
-# PARAM SNAP
-# -----------------------------
-SNAP_TOL = 1.0
-
-# -----------------------------
+# =========================================================
 # EXECUTION
-# -----------------------------
+# =========================================================
+
 files = os.listdir(STEP7_FOLDER)
 
-print("🔄 Filtrage STEP7 avec buffer STEP1...")
+print("Filtrage step7 avec buffer step1...")
 
 for file in tqdm(files):
 
@@ -130,9 +131,10 @@ for file in tqdm(files):
     if lines.empty or buffer.empty:
         continue
 
-    # -----------------------------
-    # BUFFER STEP
-    # -----------------------------
+    # =====================================================
+    # BUFFER FILTER
+    # =====================================================
+
     buffer_geom = buffer.geometry.iloc[0]
     buffer_safe = buffer_geom.buffer(-1)
 
@@ -143,18 +145,16 @@ for file in tqdm(files):
     if filtered.empty:
         continue
 
-    # -----------------------------
+    # =====================================================
     # MERGE
-    # -----------------------------
+    # =====================================================
+
     geom = unary_union(filtered.geometry)
     merged = linemerge(geom)
 
     if merged.is_empty:
         continue
 
-    # -----------------------------
-    # NORMALISATION
-    # -----------------------------
     crs = filtered.crs
 
     if merged.geom_type == "LineString":
@@ -162,32 +162,32 @@ for file in tqdm(files):
     else:
         lines_list = list(merged.geoms)
 
-    # -----------------------------
+    # =====================================================
     # SMOOTHING
-    # -----------------------------
+    # =====================================================
+
     lines_list = [
         chaikin_smoothing(l, iterations=1)
         for l in lines_list
     ]
 
-    # -----------------------------
-    # RECONSTRUCTION
-    # -----------------------------
-    filtered = gpd.GeoDataFrame(
+    # =====================================================
+    # EXPORT
+    # =====================================================
+
+    result = gpd.GeoDataFrame(
         geometry=lines_list,
         crs=crs
     )
 
-    # -----------------------------
-    # EXPORT (avec retry si lock)
-    # -----------------------------
-    if not filtered.empty:
+    if not result.empty:
+
         for attempt in range(3):
             try:
-                filtered.to_file(out_path)
+                result.to_file(out_path)
                 break
-            except Exception as e:
-                print(f"⚠️ Retry export {attempt+1}/3 : {out_path}")
+            except Exception:
+                print(f"⚠️ Retry export {attempt+1}/3")
                 time.sleep(1)
 
-print("✅ STEP8 terminé")
+print("step8 terminé...")
