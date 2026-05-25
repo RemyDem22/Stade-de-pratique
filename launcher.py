@@ -10,11 +10,9 @@ import geopandas as gpd
 # =========================================================
 
 root = tk.Tk()
-root.title("Stade de Pratique")
-root.geometry("720x900")
-root.configure(bg="#111315")
-
-root.option_add("*Font", ("Segoe UI", 10))
+root.title("Stade de Pratique - Pipeline")
+root.geometry("780x520")
+root.configure(bg="#F3F4F6")
 
 
 # =========================================================
@@ -24,63 +22,22 @@ root.option_add("*Font", ("Segoe UI", 10))
 style = ttk.Style()
 style.theme_use("clam")
 
-BG = "#111315"
-CARD = "#1A1D21"
-TEXT = "#EAECEF"
-SUBTEXT = "#9CA3AF"
-ACCENT = "#3B82F6"
+BG = "#F3F4F6"
+CARD = "#FFFFFF"
+TEXT = "#111827"
+SUBTEXT = "#6B7280"
+ACCENT = "#2563EB"
+
+style.configure("TFrame", background=BG)
+style.configure("TLabel", background=BG, foreground=TEXT)
+style.configure("TLabelframe", background=CARD)
+style.configure("TLabelframe.Label", background=CARD, foreground=TEXT)
+
 
 style.configure(
-    "Dark.TFrame",
-    background=CARD
-)
-
-style.configure(
-    "Dark.TLabel",
-    background=CARD,
-    foreground=TEXT,
-    font=("Segoe UI", 10)
-)
-
-style.configure(
-    "Title.TLabel",
-    background=BG,
-    foreground=TEXT,
-    font=("Segoe UI", 20, "bold")
-)
-
-style.configure(
-    "Subtitle.TLabel",
-    background=BG,
-    foreground=SUBTEXT,
-    font=("Segoe UI", 10)
-)
-
-style.configure(
-    "Dark.TButton",
-    background=ACCENT,
-    foreground="white",
-    borderwidth=0,
-    focusthickness=0,
-    padding=8,
-    font=("Segoe UI Semibold", 10)
-)
-
-style.map(
-    "Dark.TButton",
-    background=[("active", "#2563EB")]
-)
-
-style.configure(
-    "Dark.TCheckbutton",
-    background=CARD,
-    foreground=TEXT
-)
-
-style.configure(
-    "Dark.TMenubutton",
-    background=CARD,
-    foreground=TEXT
+    "Accent.TButton",
+    font=("Segoe UI", 10, "bold"),
+    padding=6
 )
 
 
@@ -89,103 +46,118 @@ style.configure(
 # =========================================================
 
 output_var = tk.StringVar()
-
 grid_var = tk.StringVar()
 m3_var = tk.StringVar()
 catalog_var = tk.StringVar()
 
 field_var = tk.StringVar()
-
-clean_var = tk.BooleanVar()
 step_var = tk.StringVar(value="step1")
+clean_var = tk.BooleanVar()
 
-
-# =========================================================
-# PATHS
-# =========================================================
 
 BASE_DATA = os.path.join(os.getcwd(), "data")
-
 DIR_M3 = os.path.join(BASE_DATA, "m3")
 DIR_GRID = os.path.join(BASE_DATA, "grid")
 DIR_CATALOG = os.path.join(BASE_DATA, "catalogue_geographique")
 
 
 # =========================================================
+# SCROLL FRAME FIX (IMPORTANT)
+# =========================================================
+
+container = ttk.Frame(root)
+container.pack(fill="both", expand=True)
+
+canvas = tk.Canvas(container, bg=BG, highlightthickness=0)
+scrollbar = ttk.Scrollbar(container, orient="vertical", command=canvas.yview)
+
+scroll_frame = ttk.Frame(canvas)
+
+window_id = canvas.create_window(
+    (0, 0),
+    window=scroll_frame,
+    anchor="nw"
+)
+
+def on_configure(event):
+    canvas.configure(scrollregion=canvas.bbox("all"))
+    canvas.itemconfig(window_id, width=event.width)
+
+scroll_frame.bind("<Configure>", on_configure)
+
+canvas.configure(yscrollcommand=scrollbar.set)
+
+canvas.pack(side="left", fill="both", expand=True)
+scrollbar.pack(side="right", fill="y")
+canvas.bind("<Configure>", lambda e: canvas.itemconfig(window_id, width=e.width))
+
+def _on_mousewheel(event):
+    canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+
+
+def _bind_mousewheel(event):
+    canvas.bind_all("<MouseWheel>", _on_mousewheel)
+
+
+def _unbind_mousewheel(event):
+    canvas.unbind_all("<MouseWheel>")
+
+canvas.bind("<Enter>", _bind_mousewheel)
+canvas.bind("<Leave>", _unbind_mousewheel)
+
+# =========================================================
 # HELPERS
 # =========================================================
 
 def choose_file(var, title, folder, filetypes):
-
     path = filedialog.askopenfilename(
         title=title,
         initialdir=folder,
         filetypes=filetypes
     )
-
     if path:
         var.set(path)
 
 
 def load_aera_fields():
-
     path = catalog_var.get()
 
     if not path:
-        messagebox.showerror(
-            "Erreur",
-            "Sélectionne un catalogue géographique"
-        )
+        messagebox.showerror("Erreur", "Sélectionne un catalogue géographique")
         return
 
     try:
-
         gdf = gpd.read_file(path)
-
-        fields = [
-            c for c in gdf.columns
-            if c != "geometry"
-        ]
+        fields = [c for c in gdf.columns if c != "geometry"]
 
         field_dropdown["values"] = fields
 
         if fields:
             field_var.set(fields[0])
 
+        messagebox.showinfo(
+            "OK",
+            f"{len(fields)} champs détectés dans le catalogue"
+        )
+
     except Exception as e:
         messagebox.showerror("Erreur", str(e))
 
 
-# =========================================================
-# RUN PIPELINE
-# =========================================================
-
 def run_pipeline():
 
-    output = output_var.get()
-    grid = grid_var.get()
-    m3 = m3_var.get()
-    catalog = catalog_var.get()
-    field = field_var.get()
-
-    if not output or not grid or not m3:
-        messagebox.showerror(
-            "Erreur",
-            "Output, grille et M3 obligatoires"
-        )
+    if not output_var.get() or not grid_var.get() or not m3_var.get():
+        messagebox.showerror("Erreur", "Output, grille et M3 sont obligatoires")
         return
 
     cmd = [
         "python",
         "main.py",
-
-        "--output", output,
-        "--grid", grid,
-        "--m3", m3,
-
-        "--catalog", catalog,
-        "--aera-field", field,
-
+        "--output", output_var.get(),
+        "--grid", grid_var.get(),
+        "--m3", m3_var.get(),
+        "--catalog", catalog_var.get(),
+        "--aera-field", field_var.get(),
         "--from-step", step_var.get()
     ]
 
@@ -193,233 +165,164 @@ def run_pipeline():
         cmd.append("--clean")
 
     try:
-
         subprocess.run(cmd, check=True)
-
-        messagebox.showinfo(
-            "Pipeline terminé",
-            "Le traitement est terminé avec succès."
-        )
+        messagebox.showinfo("Succès", "Pipeline terminé")
 
     except subprocess.CalledProcessError:
-
-        messagebox.showerror(
-            "Erreur",
-            "Erreur pendant l'exécution du pipeline."
-        )
+        messagebox.showerror("Erreur", "Échec du pipeline")
 
 
 # =========================================================
-# CARD COMPONENT
+# CARD FACTORY (AVEC TEXTE AIDE)
 # =========================================================
 
-def create_card(parent, title, subtitle=None):
+def card(title, help_text):
+    frame = ttk.LabelFrame(scroll_frame, text=title, padding=12)
+    frame.pack(fill="x", expand=True, padx=15, pady=8)
 
-    card = ttk.Frame(
-        parent,
-        style="Dark.TFrame",
-        padding=20
+    label = ttk.Label(
+        frame,
+        text=help_text,
+        foreground=SUBTEXT,
+        wraplength=650,  
+        justify="left"
     )
+    label.pack(fill="x", pady=(0, 10))
 
-    card.pack(
-        fill="x",
-        padx=30,
-        pady=10
-    )
-
-    ttk.Label(
-        card,
-        text=title,
-        style="Dark.TLabel",
-        font=("Segoe UI", 11, "bold")
-    ).pack(anchor="w")
-
-    if subtitle:
-        ttk.Label(
-            card,
-            text=subtitle,
-            style="Dark.TLabel",
-            foreground=SUBTEXT
-        ).pack(anchor="w", pady=(2, 10))
-
-    return card
-
+    return frame
 
 # =========================================================
 # HEADER
 # =========================================================
 
-header = tk.Frame(root, bg=BG)
-header.pack(fill="x", pady=(25, 10))
-
 ttk.Label(
-    header,
+    scroll_frame,
     text="Stade de Pratique",
-    style="Title.TLabel"
-).pack()
+    font=("Segoe UI", 16, "bold")
+).pack(pady=(15, 0))
 
 ttk.Label(
-    header,
-    text="Pipeline de génération et d’analyse réseau",
-    style="Subtitle.TLabel"
-).pack(pady=4)
+    scroll_frame,
+    text="Pipeline de génération réseau + analyse géographique",
+    foreground=SUBTEXT
+).pack(pady=(0, 10))
 
 
 # =========================================================
 # OUTPUT
 # =========================================================
 
-card = create_card(
-    root,
-    "Dossier de sortie"
+f = card(
+    "📁 Dossier de sortie",
+    "Choisis le dossier où seront exportés tous les résultats du pipeline."
 )
 
-ttk.Entry(
-    card,
-    textvariable=output_var,
-    width=90
-).pack(fill="x", pady=(10, 0))
+ttk.Entry(f, textvariable=output_var).pack(fill="x", expand=True)
 
 
 # =========================================================
 # GRID
 # =========================================================
 
-card = create_card(
-    root,
-    "Import de la grille"
+f = card(
+    "🗺️ Grille",
+    "Sélectionne la grille spatiale (GeoJSON) utilisée pour découper les données."
 )
 
-row = tk.Frame(card, bg=CARD)
-row.pack(fill="x", pady=(10, 0))
-
-ttk.Entry(
-    row,
-    textvariable=grid_var,
-    width=75
-).pack(side="left", padx=(0, 10))
+ttk.Entry(f, textvariable=grid_var).pack(fill="x", expand=True)
 
 ttk.Button(
-    row,
-    text="Choisir",
-    style="Dark.TButton",
+    f,
+    text="Parcourir",
     command=lambda: choose_file(
         grid_var,
-        "Choisir la grille",
+        "Grille",
         DIR_GRID,
         [("GeoJSON", "*.geojson")]
     )
-).pack(side="left")
+).pack(pady=5)
 
 
 # =========================================================
 # M3
 # =========================================================
 
-card = create_card(
-    root,
-    "Import du fichier M3"
+f = card(
+    "📦 M3",
+    "Sélectionne le fichier M3 contenant les données réseau initiales."
 )
 
-row = tk.Frame(card, bg=CARD)
-row.pack(fill="x", pady=(10, 0))
-
-ttk.Entry(
-    row,
-    textvariable=m3_var,
-    width=75
-).pack(side="left", padx=(0, 10))
+ttk.Entry(f, textvariable=m3_var).pack(fill="x", expand=True)
 
 ttk.Button(
-    row,
-    text="Choisir",
-    style="Dark.TButton",
+    f,
+    text="Parcourir",
     command=lambda: choose_file(
         m3_var,
-        "Choisir le fichier M3",
+        "M3",
         DIR_M3,
         [("GeoPackage", "*.gpkg")]
     )
-).pack(side="left")
+).pack(pady=5)
 
 
 # =========================================================
-# CATALOG
+# CATALOGUE
 # =========================================================
 
-card = create_card(
-    root,
-    "Choix du catalogue géographique"
+f = card(
+    "🌍 Catalogue géographique",
+    "Choisis la couche géographique (EPCI, communes, etc.) pour l’analyse AERA."
 )
 
-row = tk.Frame(card, bg=CARD)
-row.pack(fill="x", pady=(10, 0))
-
-ttk.Entry(
-    row,
-    textvariable=catalog_var,
-    width=60
-).pack(side="left", padx=(0, 10))
+ttk.Entry(f, textvariable=catalog_var).pack(fill="x", expand=True)
 
 ttk.Button(
-    row,
-    text="Choisir",
-    style="Dark.TButton",
+    f,
+    text="Parcourir",
     command=lambda: choose_file(
         catalog_var,
-        "Choisir le catalogue",
+        "Catalogue",
         DIR_CATALOG,
         [("GeoJSON", "*.geojson")]
     )
-).pack(side="left")
+).pack(pady=5)
 
 ttk.Button(
-    row,
+    f,
     text="Charger les champs",
-    style="Dark.TButton",
     command=load_aera_fields
-).pack(side="left", padx=(10, 0))
+).pack(pady=5)
 
 
 # =========================================================
 # FIELD
 # =========================================================
 
-card = create_card(
-    root,
-    "Choix du champ attributaire pour le nom"
+f = card(
+    "🏷️ Champ attributaire",
+    "Sélectionne le champ utilisé comme identifiant (nom des entités)."
 )
 
 field_dropdown = ttk.Combobox(
-    card,
+    f,
     textvariable=field_var,
-    state="readonly",
-    width=60
+    state="readonly"
 )
-
-field_dropdown.pack(fill="x", pady=(10, 0))
+field_dropdown.pack(fill="x", expand=True)
 
 
 # =========================================================
 # OPTIONS
 # =========================================================
 
-card = create_card(
-    root,
-    "Options"
+f = card(
+    "⚙️ Options d'exécution",
+    "Choisis le point de reprise et les options du pipeline."
 )
 
-options_row = tk.Frame(card, bg=CARD)
-options_row.pack(fill="x", pady=(10, 0))
-
-ttk.Label(
-    options_row,
-    text="Reprendre depuis",
-    style="Dark.TLabel"
-).pack(side="left", padx=(0, 10))
-
 ttk.OptionMenu(
-    options_row,
+    f,
     step_var,
     step_var.get(),
     "step1",
@@ -427,38 +330,25 @@ ttk.OptionMenu(
     "step8",
     "merge",
     "aera"
-).pack(side="left")
+).pack(anchor="w")
 
 ttk.Checkbutton(
-    options_row,
-    text="Clean",
-    variable=clean_var,
-    style="Dark.TCheckbutton"
-).pack(side="left", padx=25)
+    f,
+    text="Nettoyer les outputs avant exécution",
+    variable=clean_var
+).pack(anchor="w", pady=5)
 
 
 # =========================================================
-# RUN BUTTON
+# RUN
 # =========================================================
 
-run_frame = tk.Frame(root, bg=BG)
-run_frame.pack(fill="x", pady=30)
-
-launch_btn = tk.Button(
-    run_frame,
-    text="Lancer le pipeline",
-    bg=ACCENT,
-    fg="white",
-    activebackground="#2563EB",
-    activeforeground="white",
-    relief="flat",
-    font=("Segoe UI", 11, "bold"),
-    padx=25,
-    pady=12,
+ttk.Button(
+    scroll_frame,
+    text="Calcul du stade",
+    style="Accent.TButton",
     command=run_pipeline
-)
-
-launch_btn.pack()
+).pack(pady=20)
 
 
 # =========================================================
