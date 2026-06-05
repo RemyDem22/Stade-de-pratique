@@ -16,26 +16,6 @@ Le pipeline :
 - Fusionne les tuiles générés
 - Calcul le stade de km parcourus selon un catalogue géographique
 
-## Structure du projet
-
-Stade-de-Pratique/
-│
-├── main.py
-├── launcher.py
-├── merge.py
-├── network_aera.py
-│
-├── step1to6_processing.py
-├── step7_split.py
-├── step8_buffer.py
-│
-├── data/
-│   ├── grid/
-│   ├── m3/
-│   └── catalogue_geographique/
-│
-└── output/
-
 ### Installation complète
 Clone du projet : git clone https://github.com/RemyDem22/Stade-de-Pratique.git
 cd Stade-de-Pratique
